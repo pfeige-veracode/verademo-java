@@ -73,3 +73,4 @@ Then register as a new user and add some feeds
 Test 1
 Test 2
 Test 3
+Test 4
