@@ -67,7 +67,7 @@ jobs:
         
 # Artifact the results for later use
       - name: Archive Results.json & Results.txt from Veracode Static Pipeline Scanner
-        uses: actions/upload-artifact@v3.1.0
+        uses: actions/upload-artifact@v4
         with:
           # Artifact name
           name: Pipeline Scanner Results
