@@ -82,3 +82,6 @@ jobs:
           codeSuggestion: false
           createPR: true
           useGitHubApp: 'true'
+          files: |
+            com/veracode/verademo/controller/ToolsController.java
+          cwe: "all,-78"
