@@ -56,10 +56,11 @@ jobs:
           name: Veracode Pipeline-Scan Results
           path: results.json
 
-    veracode-fix:
+  veracode-fix:
     runs-on: ubuntu-latest
     needs: pipeline_scan
-    name: Veracode Fix
+    name: create fixes
+    permissions: write-all
     steps:
       - name: checkout repo
         uses: actions/checkout@v3
@@ -71,7 +72,7 @@ jobs:
           
       - name: Create fixes from static findings
         id: convert
-        uses: Veracode/veracode-fix@main
+        uses: Veracode/veracode-fix@workflowApp
         with:
           inputFile: results.json
           vid: ${{ secrets.VERACODE_API_ID }}
@@ -81,3 +82,6 @@ jobs:
           language: java
           prComment: true
           fixType: batch
+          codeSuggestion: false
+          createPR: true
+          useGitHubApp: 'true'
