@@ -19,13 +19,14 @@ jobs:
           java-version: 8
 
       - name: Build with Maven
+        working-directory: ./app
         run: mvn clean package -DskipTests
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: verademo.war
-          path: target/verademo.war
+          path: app/target/verademo.war
 
   pipeline_scan:
     needs: build
