@@ -1,8 +1,7 @@
 // Jenkinsfile for VeraDemo Java with Veracode Scans
 
 pipeline {
-    // Run on Jenkins controller (x86_64) to support Veracode SCA
-    agent { label 'master' }
+    agent { label 'built-in' }
 
     environment {
         VERACODE_APP_NAME = 'Verademo' // App Name in Veracode Platform
