@@ -1,24 +1,22 @@
-//
-// This is an example of using VeraDemo Java test application with the Veracode Static scanner.  
-//
+// Jenkinsfile for VeraDemo Java with Veracode Scans
 
 pipeline {
-    agent any
+    // Run on Jenkins controller (x86_64) to support Veracode SCA
+    agent { label 'master' }
 
     environment {
-        VERACODE_APP_NAME = 'Verademo'      // App Name in the Veracode Platform
+        VERACODE_APP_NAME = 'Verademo' // App Name in Veracode Platform
     }
 
-    stages{
-        stage ('environment verify') {
+    stages {
+        stage('Environment Verify') {
             steps {
                 script {
-                    if (isUnix() == true) {
+                    if (isUnix()) {
                         sh 'pwd'
                         sh 'ls -la'
                         sh 'echo $PATH'
-                    }
-                    else {
+                    } else {
                         bat 'dir'
                         bat 'echo %PATH%'
                     }
@@ -26,14 +24,13 @@ pipeline {
             }
         }
 
-        stage ('build') {
+        stage('Build') {
             steps {
-                withMaven(maven:'maven-3') {
+                withMaven(maven: 'maven-3') {
                     script {
-                        if(isUnix() == true) {
+                        if (isUnix()) {
                             sh 'mvn -f app clean package'
-                        }
-                        else {
+                        } else {
                             bat 'mvn -f app clean package'
                         }
                     }
@@ -41,73 +38,53 @@ pipeline {
             }
         }
 
-        stage ('Veracode scan') {
+        stage('Veracode Static Scan') {
             steps {
-                script {
-                    if(isUnix() == true) {
-                        env.HOST_OS = 'Unix'
-                    }
-                    else {
-                        env.HOST_OS = 'Windows'
-                    }
-                }
-
-                echo 'Veracode scanning'
-                withCredentials([ usernamePassword ( 
-                    credentialsId: 'veracode_login', usernameVariable: 'VERACODE_API_ID', passwordVariable: 'VERACODE_API_KEY') ]) {
-                        // fire-and-forget 
-                        veracode applicationName: "${VERACODE_APP_NAME}", criticality: 'VeryHigh', debug: true, fileNamePattern: '', replacementPattern: '', sandboxName: '', scanExcludesPattern: '', scanIncludesPattern: '', scanName: 'Jenkins-${BUILD_NUMBER}', uploadExcludesPattern: '', uploadIncludesPattern: 'app/target/verademo.war', vid: "${VERACODE_API_ID}", vkey: "${VERACODE_API_KEY}"
-
-                        // wait for scan to complete (timeout: x)
-                        //veracode applicationName: '${VERACODE_APP_NAME}'', criticality: 'VeryHigh', debug: true, timeout: 20, fileNamePattern: '', pHost: '', pPassword: '', pUser: '', replacementPattern: '', sandboxName: '', scanExcludesPattern: '', scanIncludesPattern: '', scanName: "${BUILD_TAG}", uploadExcludesPattern: '', uploadIncludesPattern: 'target/verademo.war', vid: '${VERACODE_API_ID}', vkey: '${VERACODE_API_KEY}'
-                    }      
-            }
-        }
-
-// the above steps are the bare minimum.
-// below are some additional steps that are commonplace
-
-        stage ('Veracode SCA') {
-            steps {
-                echo 'Veracode SCA'
-                withCredentials([ string(credentialsId: 'SCA_Token', variable: 'SRCCLR_API_TOKEN')]) {
-                    withMaven(maven:'maven-3') {
-                        script {
-                            if(isUnix() == true) {
-                                sh "curl -sSL https://download.sourceclear.com/ci.sh | sh -s -- scan app"
-
-                                // debug, no upload
-                                //sh "curl -sSL https://download.sourceclear.com/ci.sh | DEBUG=1 sh -s -- scan --no-upload"
-                            }
-                            else {
-                                powershell '''
-                                            Set-ExecutionPolicy AllSigned -Scope Process -Force
-                                            $ProgressPreference = "silentlyContinue"
-                                            iex ((New-Object System.Net.WebClient).DownloadString('https://download.srcclr.com/ci.ps1'))
-                                            srcclr scan app
-                                            '''
-                            }
-                        }
+                echo 'Starting Veracode Static Scan'
+                withCredentials([usernamePassword(
+                    credentialsId: 'veracode_login',
+                    usernameVariable: 'VERACODE_API_ID',
+                    passwordVariable: 'VERACODE_API_KEY'
+                )]) {
+                    script {
+                        veracode(
+                            applicationName: "${VERACODE_APP_NAME}",
+                            criticality: 'VeryHigh',
+                            debug: true,
+                            scanName: "Jenkins-${BUILD_NUMBER}",
+                            uploadIncludesPattern: 'app/target/verademo.war',
+                            vid: "${VERACODE_API_ID}",
+                            vkey: "${VERACODE_API_KEY}"
+                        )
                     }
                 }
             }
         }
 
-        // Currently only works on *nix
-        stage ('Veracode container scan') {
+        stage('Veracode SCA') {
+            when { expression { isUnix() } } // Only run SCA on Unix x86
             steps {
-                echo 'Veracode container scanning'
-                withCredentials([ usernamePassword ( 
-                    credentialsId: 'veracode_login', usernameVariable: 'VERACODE_API_KEY_ID', passwordVariable: 'VERACODE_API_KEY_SECRET') ]) {
-                        script {
-                            if(isUnix() == true) {
-                                sh '''
-                                    curl -fsS https://tools.veracode.com/veracode-cli/install | sh
-                                    ./veracode scan --type directory --source . --format table
-                                    '''
-                            }
-                        }
-                    }
+                echo 'Starting Veracode SCA Scan'
+                withCredentials([string(credentialsId: 'SCA_Token', variable: 'SRCCLR_API_TOKEN')]) {
+                    sh "curl -sSL https://download.sourceclear.com/ci.sh | sh -s -- scan app"
+                }
+            }
+        }
+
+        stage('Veracode Container Scan') {
+            when { expression { isUnix() } } // Only run container scan on Unix x86
+            steps {
+                echo 'Starting Veracode Container Scan'
+                withCredentials([usernamePassword(
+                    credentialsId: 'veracode_login',
+                    usernameVariable: 'VERACODE_API_KEY_ID',
+                    passwordVariable: 'VERACODE_API_KEY_SECRET'
+                )]) {
+                    sh '''
+                        curl -fsS https://tools.veracode.com/veracode-cli/install | sh
+                        ./veracode scan --type directory --source . --format table
+                    '''
+                }
             }
         }
     }
